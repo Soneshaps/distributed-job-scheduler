@@ -1,0 +1,54 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker
+  namespace: job-scheduler
+  labels:
+    app: worker
+spec:
+  type: ClusterIP
+  selector:
+    app: worker
+  ports:
+  - name: metrics
+    port: 9091
+    targetPort: 9091
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: api-service-monitor
+  namespace: job-scheduler
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: api
+  namespaceSelector:
+    matchNames:
+      - job-scheduler
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 5s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: worker-service-monitor
+  namespace: job-scheduler
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: worker
+  namespaceSelector:
+    matchNames:
+      - job-scheduler
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 5s 

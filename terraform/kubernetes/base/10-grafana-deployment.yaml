@@ -1,0 +1,186 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: job-scheduler
+  labels:
+    grafana_dashboard: "1"
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'Job Scheduler Overview'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /etc/grafana/provisioning/dashboards
+  job-scheduler-dashboard.json: |
+    {
+      "id": null,
+      "title": "Job Scheduler Overview",
+      "schemaVersion": 30,
+      "version": 2,
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Jobs Submitted",
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "jobs_submitted_total",
+            "legendFormat": "{{type}}-{{priority}}",
+            "refId": "A"
+          }],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0}
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Jobs Processed",
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "jobs_processed_total",
+            "legendFormat": "{{type}}-{{status}}",
+            "refId": "A"
+          }],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Avg Job Duration (s)",
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "rate(job_duration_seconds_sum[5m]) / rate(job_duration_seconds_count[5m])",
+            "legendFormat": "{{type}}",
+            "refId": "A"
+          }],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Job Success Rate (%)",
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "100 * sum(rate(jobs_processed_total{status=\"completed\"}[5m])) / sum(rate(jobs_processed_total[5m]))",
+            "refId": "A"
+          }],
+          "fieldConfig": {
+            "defaults": {"unit": "percent", "decimals": 1},
+            "overrides": []
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Jobs Submitted per Minute",
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "rate(jobs_submitted_total[1m]) * 60",
+            "legendFormat": "{{type}}-{{priority}}",
+            "refId": "A"
+          }],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Jobs Processed per Minute",
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "rate(jobs_processed_total{status=\"completed\"}[1m]) * 60",
+            "legendFormat": "{{type}}",
+            "refId": "A"
+          }],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Jobs Failed per Minute",
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "rate(jobs_processed_total{status=\"failed\"}[1m]) * 60",
+            "legendFormat": "{{type}}",
+            "refId": "A"
+          }],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: job-scheduler
+data:
+  prometheus-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus # Fixed UID for dashboard linking
+        type: prometheus
+        access: proxy
+        url: http://prometheus-proxy.job-scheduler.svc.cluster.local:9090/prometheus
+        isDefault: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: job-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.1.1
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: "admin"
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "admin"
+        - name: GF_SERVER_ROOT_URL
+          value: "/grafana"
+        - name: GF_SERVER_SERVE_FROM_SUB_PATH
+          value: "true"
+        volumeMounts:
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: dashboards
+          mountPath: /etc/grafana/provisioning/dashboards
+      volumes:
+      - name: datasources
+        configMap:
+          name: grafana-datasources
+      - name: dashboards
+        configMap:
+          name: grafana-dashboards
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: job-scheduler
+spec:
+  selector:
+    app: grafana
+  ports:
+  - port: 3000
+    targetPort: 3000 

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: publisher
+  namespace: job-scheduler
+  labels:
+    app: publisher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: publisher
+  template:
+    metadata:
+      labels:
+        app: publisher
+    spec:
+      containers:
+      - name: publisher
+        image: placeholder-publisher-image
+        imagePullPolicy: Always
+        env:
+        - name: DATABASE_URL
+          value: "postgres://user:password@postgres.job-scheduler.svc.cluster.local:5432/jobs"
+        - name: RABBITMQ_URL
+          value: "amqp://user:password@rabbitmq.job-scheduler.svc.cluster.local:5672/"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: publisher
+  namespace: job-scheduler
+  labels:
+    app: publisher
+spec:
+  type: ClusterIP
+  selector:
+    app: publisher
+  ports:
+    - name: dummy
+      port: 80
+      targetPort: 80 

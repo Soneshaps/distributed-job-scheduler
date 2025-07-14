@@ -1,0 +1,157 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-html
+  namespace: job-scheduler
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Job Scheduler Status</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 2em; }
+            .container { max-width: 960px; margin: auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+            h1 { color: #2c3e50; border-bottom: 2px solid #e0e0e0; padding-bottom: 0.5em; }
+            .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5em; margin-top: 2em; }
+            .metric-card { background-color: #fdfdfd; border: 1px solid #e0e0e0; padding: 1.5em; border-radius: 6px; text-align: center; }
+            .metric-card .value { font-size: 2.5em; font-weight: 600; color: #3498db; margin: 0.2em 0; }
+            .metric-card .label { font-size: 1em; color: #7f8c8d; }
+            .loader { font-size: 2.5em; color: #e0e0e0; }
+            footer { text-align: center; margin-top: 2em; color: #95a5a6; }
+            a { color: #3498db; text-decoration: none; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Job Scheduler Status</h1>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div id="submitted" class="value loader">...</div>
+                    <div class="label">Jobs Submitted (Last Hour)</div>
+                </div>
+                <div class="metric-card">
+                    <div id="completed" class="value loader">...</div>
+                    <div class="label">Jobs Completed (Last Hour)</div>
+                </div>
+                 <div class="metric-card">
+                    <div id="retried" class="value loader">...</div>
+                    <div class="label">Jobs Retried (Last Hour)</div>
+                </div>
+                <div class="metric-card">
+                    <div id="failed" class="value loader">...</div>
+                    <div class="label">Jobs Failed (DLQ'd) (Last Hour)</div>
+                </div>
+                <div class="metric-card">
+                    <div id="success-rate" class="value loader">...</div>
+                    <div class="label">Success Rate (Last 5m)</div>
+                </div>
+                <div class="metric-card">
+                    <div id="active-workers" class="value loader">...</div>
+                    <div class="label">Active Worker Pods</div>
+                </div>
+            </div>
+            <footer>
+                <p>Metrics automatically refresh every 5 seconds. | <a href="/grafana" target="_blank">Grafana</a> | <a href="/prometheus/graph?g0.expr=&amp;g0.tab=1&amp;g0.stacked=0&amp;g0.show_exemplars=0&amp;g0.range_input=1h" target="_blank">Prometheus</a></p>
+            </footer>
+        </div>
+
+        <script>
+            const PROMETHEUS_URL = '/prometheus';
+
+            async function queryPrometheus(query) {
+                const response = await fetch(`${PROMETHEUS_URL}/api/v1/query?query=${encodeURIComponent(query)}`);
+                if (!response.ok) {
+                    console.error("Prometheus query failed:", response.statusText);
+                    return 'N/A';
+                }
+                const data = await response.json();
+                if (data.status !== 'success' || !data.data.result || data.data.result.length === 0) {
+                    return 'N/A';
+                }
+                return parseFloat(data.data.result[0].value[1]).toFixed(0);
+            }
+
+            async function querySuccessRate() {
+                 const query = `100 * (sum(rate(jobs_processed_total{status="completed"}[5m])) / sum(rate(jobs_processed_total{status=~"completed|failed"}[5m])))`;
+                 const result = await queryPrometheus(query);
+                 return result !== 'N/A' ? `${parseFloat(result).toFixed(2)}%` : 'N/A';
+            }
+
+            function updateMetric(elementId, value) {
+                const el = document.getElementById(elementId);
+                if (el) {
+                    el.textContent = value;
+                    el.classList.remove('loader');
+                }
+            }
+            
+            async function fetchMetrics() {
+                try {
+                    const submitted = await queryPrometheus('sum(increase(jobs_submitted_total[1h]))');
+                    const completed = await queryPrometheus('sum(increase(jobs_processed_total{status="completed"}[1h]))');
+                    const retried = await queryPrometheus('sum(increase(jobs_processed_total{status="retried"}[1h]))');
+                    const failed = await queryPrometheus('sum(increase(jobs_processed_total{status="failed"}[1h]))');
+                    const successRate = await querySuccessRate();
+                    const activeWorkers = await queryPrometheus(`sum(keda_scaled_object_active_replicas{scaled_object="worker-scaler"})`);
+
+                    updateMetric('submitted', submitted);
+                    updateMetric('completed', completed);
+                    updateMetric('retried', retried);
+                    updateMetric('failed', failed);
+                    updateMetric('success-rate', successRate);
+                    updateMetric('active-workers', activeWorkers);
+
+                } catch (error) {
+                    console.error("Error fetching metrics:", error);
+                }
+            }
+            fetchMetrics();
+            setInterval(fetchMetrics, 5000);
+        </script>
+    </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: job-scheduler
+  labels:
+    app: homepage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homepage
+  template:
+    metadata:
+      labels:
+        app: homepage
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25-alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: html
+        configMap:
+          name: homepage-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepage
+  namespace: job-scheduler
+spec:
+  selector:
+    app: homepage
+  ports:
+  - port: 80
+    targetPort: 80 
