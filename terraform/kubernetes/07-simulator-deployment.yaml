@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simulator
+  namespace: job-scheduler
+  labels:
+    app: simulator
+spec:
+  replicas: 2 # Start with a couple of simulator pods
+  selector:
+    matchLabels:
+      app: simulator
+  template:
+    metadata:
+      labels:
+        app: simulator
+    spec:
+      containers:
+      - name: simulator
+        image: YOUR_ECR_REGISTRY/job-scheduler-simulator:latest # <-- REPLACE THIS
+        imagePullPolicy: Always
+        env:
+        - name: API_URL
+          value: "http://api.job-scheduler.svc.cluster.local:8080/jobs"
+        - name: RATE_PER_SEC
+          value: "10" # Total rate across all simulator pods
+        - name: CONCURRENCY
+          value: "10"
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi" 

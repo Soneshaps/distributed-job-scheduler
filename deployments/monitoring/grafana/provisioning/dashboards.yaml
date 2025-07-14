@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: 'Job Scheduler Overview'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards 

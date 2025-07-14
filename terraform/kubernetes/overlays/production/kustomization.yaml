@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+
+images:
+- name: placeholder-api-image
+  newName: 971422713819.dkr.ecr.us-east-1.amazonaws.com/job-scheduler-api
+  newTag: latest
+- name: placeholder-publisher-image
+  newName: 971422713819.dkr.ecr.us-east-1.amazonaws.com/job-scheduler-publisher
+  newTag: latest
+- name: placeholder-simulator-image
+  newName: 971422713819.dkr.ecr.us-east-1.amazonaws.com/job-scheduler-simulator
+  newTag: latest
+- name: placeholder-worker-image
+  newName: 971422713819.dkr.ecr.us-east-1.amazonaws.com/job-scheduler-worker
+  newTag: latest
+resources:
+- ../../base

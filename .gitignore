@@ -1,0 +1,20 @@
+# Terraform state & cache
+.terraform/
+*.tfstate*
+.terraform.lock.hcl
+
+# Environment files
+.env
+.env.*
+
+# Build & local tooling
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Docker artifacts
+**/node_modules/
+
+# AWS credentials / packages
+awscredentials 

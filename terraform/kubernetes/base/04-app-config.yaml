@@ -1,0 +1,17 @@
+# ---
+# This service creates a DNS alias within the 'job-scheduler' namespace
+# that points to the actual Prometheus service in the 'monitoring' namespace.
+# This allows our Ingress to route to Prometheus without violating
+# Kubernetes' cross-namespace restrictions.
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-proxy
+  namespace: job-scheduler
+spec:
+  selector:
+    app: prometheus-proxy
+  ports:
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP 

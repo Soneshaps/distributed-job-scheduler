@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - 00-namespace.yaml
+  - 01-rabbitmq.yaml
+  - 02-postgres.yaml
+  # 03-keda.yaml is intentionally excluded; handled separately if needed
+  - 04-app-config.yaml
+  - 05-api-deployment.yaml
+  - 06-worker-scaledobject.yaml
+  - 07-simulator-deployment.yaml
+  - 08-homepage-deployment.yaml
+  - 09-ingress.yaml
+  - 10-grafana-deployment.yaml
+  - 11-monitoring.yaml
+  - 14-prometheus-proxy-deployment.yaml
+  - 15-publisher-deployment.yaml 

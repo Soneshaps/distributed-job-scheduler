@@ -1,0 +1,98 @@
+{
+  "id": null,
+  "title": "Job Scheduler Overview",
+  "schemaVersion": 30,
+  "version": 2,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Jobs Submitted",
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "jobs_submitted_total",
+        "legendFormat": "{{type}}-{{priority}}",
+        "refId": "A"
+      }],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Jobs Processed",
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "jobs_processed_total",
+        "legendFormat": "{{type}}-{{status}}",
+        "refId": "A"
+      }],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Avg Job Duration (s)",
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "rate(job_duration_seconds_sum[5m]) / rate(job_duration_seconds_count[5m])",
+        "legendFormat": "{{type}}",
+        "refId": "A"
+      }],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Job Success Rate (%)",
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "100 * sum(rate(jobs_processed_total{status=\"completed\"}[5m])) / sum(rate(jobs_processed_total[5m]))",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Jobs Submitted per Minute",
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "rate(jobs_submitted_total[1m]) * 60",
+        "legendFormat": "{{type}}-{{priority}}",
+        "refId": "A"
+      }],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Jobs Processed per Minute",
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "rate(jobs_processed_total{status=\"completed\"}[1m]) * 60",
+        "legendFormat": "{{type}}",
+        "refId": "A"
+      }],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Jobs Failed per Minute",
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "rate(jobs_processed_total{status=\"failed\"}[1m]) * 60",
+        "legendFormat": "{{type}}",
+        "refId": "A"
+      }],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+    }
+  ]
+} 
