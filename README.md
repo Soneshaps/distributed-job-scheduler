@@ -52,6 +52,10 @@ Terminally failed jobs are automatically isolated.
 
 *   **Mechanism:** Our main work queues are configured with the `x-dead-letter-exchange` property. When a worker has exhausted all retries, it issues a negative acknowledgement (`nack`) with `requeue=false`. This signals RabbitMQ to automatically route the message to our Dead-Letter Queue (`jobs.dead_letter.queue`).
 
+#### Screenshots
+![Queue Tab](https://i.ibb.co/9kGKKptK/Screenshot-2025-07-14-at-14-40-10.png)
+![Exchange Tab](https://i.ibb.co/pjXz5srV/Screenshot-2025-07-14-at-14-45-06.png)
+
 ## **4. Database Schema**
 
 We use PostgreSQL as our source of truth. The schema is designed to store job state and support the Transactional Outbox pattern.
@@ -138,6 +142,15 @@ The flow for handling a failed job within a `Worker` is as follows:
         a. The worker updates the job's status to `FAILED` in the database.
         b. It negatively acknowledges (`nack` with `requeue=false`) the message.
         c. RabbitMQ's dead-lettering configuration automatically routes the message to the **Dead-Letter Queue**.
+
+
+## **6. Observability & Monitoring**
+
+A core principle of this design is that every part of the system must be observable. We use the **Prometheus + Grafana** stack to achieve this. The `api` and `worker` services export detailed metrics, which are scraped by Prometheus and visualized in a pre-built Grafana dashboard.
+
+This provides real-time insights into job throughput, processing latency, success/failure rates, and overall system health.
+
+![Live Grafana Dashboard](https://i.ibb.co/4whQPbcd/Screenshot-2025-07-14-at-14-51-42.png)
 
 
 ---
