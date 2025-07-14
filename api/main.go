@@ -49,10 +49,17 @@ func main() {
 	observability.StartMetricsServer(":8081")
 
 	http.HandleFunc("/jobs", handleSubmitJob)
+	http.HandleFunc("/health", handleHealth)
 	slog.Info("API server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		slog.Error("api server failed", "error", err)
 	}
+}
+
+func handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
 }
 
 func handleSubmitJob(w http.ResponseWriter, r *http.Request) {
