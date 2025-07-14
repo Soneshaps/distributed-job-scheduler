@@ -245,3 +245,29 @@ To stop and remove all running containers, networks, and volumes, run:
 docker-compose down -v
 ```
 The `-v` flag ensures the PostgreSQL data volume is also removed, giving you a clean slate for the next run.
+
+
+---
+
+### **Production Deployment on AWS EKS**
+
+While the `docker-compose.yml` provides a complete environment for local development, this project is designed for a production-grade, cloud-native deployment on **Amazon EKS (Elastic Kubernetes Service)**, orchestrated with **Terraform**.
+
+The `/terraform` directory contains the necessary Infrastructure as Code (IaC) to provision the entire cloud environment.
+
+#### **Key Deployment Features:**
+
+1.  **Infrastructure as Code (IaC):**
+    *   **Terraform Modules:** The infrastructure is modularized using official Terraform modules for VPC (`terraform-aws-modules/vpc/aws`) and EKS (`terraform-aws-modules/eks/aws`), ensuring best practices for networking and cluster configuration.
+    *   **VPC & Networking:** A new VPC is created with public and private subnets across multiple availability zones for high availability.
+    *   **EKS Cluster:** A robust EKS cluster is provisioned with separate managed node groups for general workloads and our dedicated `job-workers`.
+
+2.  **Kubernetes Manifests & Kustomize:**
+    *   **Base Configuration:** The `/terraform/kubernetes/base` directory contains the baseline Kubernetes manifests for all services (`api`, `worker`, `publisher`, etc.).
+    *   **Environment Overlays:** We use **Kustomize** to manage environment-specific configurations. The `/terraform/kubernetes/overlays/production` overlay, for example, replaces placeholder image names with the actual Amazon ECR image URIs, demonstrating a clean separation of configuration from base definitions.
+
+3.  **Event-Driven Autoscaling with KEDA:**
+    *   The worker deployment is managed by a **KEDA `ScaledObject`** (`/terraform/kubernetes/base/06-worker-scaledobject.yaml`).
+    *   KEDA directly monitors the RabbitMQ work queues. If the queue length exceeds a defined threshold (e.g., 10 messages), KEDA automatically scales up the number of `worker` pods. When the queue is empty, it scales the workers down (potentially to zero) to save costs. This provides a truly elastic and responsive execution engine.
+
+This Terraform setup provides a repeatable, automated, and production-ready path for deploying and managing the entire job scheduler system on AWS.
