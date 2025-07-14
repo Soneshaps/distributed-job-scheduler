@@ -41,7 +41,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: docker/api/Dockerfile
+      dockerfile: deployments/docker/api/Dockerfile
     ports:
       - "8080:8080" # App port
       - "8081:8081" # Metrics port
@@ -58,7 +58,7 @@ services:
   worker:
     build:
       context: .
-      dockerfile: docker/worker/Dockerfile
+      dockerfile: deployments/docker/worker/Dockerfile
     deploy:
       replicas: 10
     environment:
@@ -73,7 +73,7 @@ services:
   simulator:
     build:
       context: .
-      dockerfile: docker/simulator/Dockerfile
+      dockerfile: deployments/docker/simulator/Dockerfile
     deploy:
       replicas: 4
     environment:
@@ -88,7 +88,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./deployments/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
     depends_on:
@@ -100,7 +100,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./monitoring/grafana/provisioning/:/etc/grafana/provisioning/
+      - ./deployments/monitoring/grafana/provisioning/:/etc/grafana/provisioning/
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
@@ -110,7 +110,7 @@ services:
   publisher:
     build:
       context: .
-      dockerfile: docker/publisher/Dockerfile
+      dockerfile: deployments/docker/publisher/Dockerfile
     environment:
       - DATABASE_URL=postgres://user:password@postgres:5432/jobs
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
