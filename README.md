@@ -8,7 +8,7 @@ This document serves as the primary design document, fulfilling all requirements
 
 The system is built on a set of decoupled, event-driven microservices that communicate asynchronously. This design ensures that components can be scaled and deployed independently, and that the system remains resilient to partial failures.
 
-![Architecture Diagram](https://i.ibb.co/LDG1rfVT/light-mode-high-level-architecture.png)
+![Architecture Diagram](https://i.ibb.co/wr7CvYkJ/light-h-l-a.png)
 
 #### **Architectural Flow:**
 
@@ -138,3 +138,110 @@ The flow for handling a failed job within a `Worker` is as follows:
         a. The worker updates the job's status to `FAILED` in the database.
         b. It negatively acknowledges (`nack` with `requeue=false`) the message.
         c. RabbitMQ's dead-lettering configuration automatically routes the message to the **Dead-Letter Queue**.
+
+
+---
+
+## **Getting Started**
+
+This project is fully containerized and can be launched with a single command. The following instructions will guide you through building the Go applications, launching the entire stack, and interacting with the system.
+
+### **Prerequisites**
+
+*   **Docker:** [Install Docker](https://docs.docker.com/get-docker/)
+*   **Docker Compose:** [Install Docker Compose](https://docs.docker.com/compose/install/) (Included with Docker Desktop)
+*   **Go (v1.21+):** [Install Go](https://go.dev/doc/install) (for running tests locally)
+
+### **Running the Application**
+
+1.  **Clone the Repository:**
+    ```sh
+    git clone <your-repo-url>
+    cd job-scheduler
+    ```
+
+2.  **Launch the Entire Stack:**
+    The `docker-compose.yml` file orchestrates all services: our Go applications (`api`, `publisher`, `worker`), `postgres`, `rabbitmq`, `prometheus`, `grafana`, and a `simulator` to generate load.
+
+    The following command will build the application images, start all containers in detached mode, and scale the `worker` service to 10 replicas to demonstrate horizontal scalability.
+
+    ```sh
+    docker-compose up --build -d --scale worker=10
+    ```
+    *   `--build`: Forces a rebuild of the Go application images if there are code changes.
+    *   `-d`: Runs the containers in the background.
+    *   `--scale worker=10`: Starts 10 instances of our stateless `worker` service.
+
+3.  **Verify Services are Running:**
+    You can check the status of all running containers:
+    ```sh
+    docker-compose ps
+    ```
+    You should see all services (`postgres`, `rabbitmq`, `api`, etc.) with a `running` or `healthy` status.
+
+### **Accessing Services & Dashboards**
+
+Once the stack is running, you can access the following service UIs in your browser:
+
+*   **RabbitMQ Management UI:** `http://localhost:15672`
+    *   **Credentials:** `user` / `password`
+    *   **What to look for:** Inspect the `jobs.exchange`, the individual work queues (`jobs.queue.send_email`, etc.), and the `jobs.dead_letter.queue`. You can see message rates and the number of jobs waiting.
+
+*   **Grafana Dashboard:** `http://localhost:3000`
+    *   **Credentials:** `admin` / `admin`
+    *   **What to look for:** Navigate to the pre-configured "Job Scheduler Overview" dashboard to see a live visualization of job throughput, processing latency, and error rates.
+
+*   **Prometheus UI:** `http://localhost:9090`
+    *   **What to look for:** Go to `Status -> Targets` to verify that Prometheus is successfully scraping metrics from the `api` and `worker` services. You can run queries like `rate(jobs_processed_total[1m])` to explore the raw data.
+
+### **Interacting with the System**
+
+#### **Submitting a Job**
+You can submit a new job by sending a `POST` request to the `api` service from your terminal.
+
+```sh
+curl -X POST http://localhost:8080/jobs \
+-H "Content-Type: application/json" \
+-d '{
+    "type": "send_email",
+    "priority": "high",
+    "payload": "{\"to\": \"test@example.com\", \"subject\": \"Hello from the Job Scheduler!\"}",
+    "max_retries": 3
+}'
+```
+The system will respond with a `202 Accepted` status and the `job_id`:
+```json
+{"job_id":"a1b2c3d4-e5f6-...."}
+```
+
+#### **Checking the Logs**
+To see the structured JSON logs from the services, you can follow the logs of a specific service. For example, to see the workers processing jobs:
+```sh
+docker-compose logs -f worker
+```
+
+## **Testing the System**
+
+The project includes integration tests that can be run against the live Docker Compose environment.
+
+1.  **Run the Go Integration Test:**
+    This test includes a health check and verifies the job submission endpoint. Execute it from your host machine while the containers are running.
+
+    ```sh
+    docker-compose exec api go test ./tests/... -v
+    ```
+    *This command executes `go test` inside the running `api` container.*
+
+2.  **Run the Shell Script Test:**
+    A simple shell script is also available to quickly test the health and job submission endpoints from your terminal.
+    ```sh
+    ./tests/test_api.sh
+    ```
+
+## **Stopping the Application**
+
+To stop and remove all running containers, networks, and volumes, run:
+```sh
+docker-compose down -v
+```
+The `-v` flag ensures the PostgreSQL data volume is also removed, giving you a clean slate for the next run.
